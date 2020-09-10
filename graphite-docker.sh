@@ -1,0 +1,1 @@
+sudo docker run -d --restart=always --name graphite  -p 8080:80 -p 2003-2004:2003-2004 -p 2023-2024:2023-2024 -p 8125:8125/udp -p 8126:8126  -v /opt/graphite/configs:/opt/graphite/conf -v /opt/graphite/data:/opt/graphite/storage -v /opt/statsd_config:/opt/statsd/config  graphiteapp/graphite-statsd
