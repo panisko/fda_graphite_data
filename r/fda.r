@@ -1,7 +1,8 @@
 ### Libraries
 library('fda')
-library("fda.usc")
-
+library(devtools)
+devtools::install_github("moviedo5/fda.usc")
+library('fda.usc')
 ### Functions
 
 #'WIP:
@@ -71,6 +72,7 @@ dev.off()
 #fdata <- fdata(data)
 # fda* libraries don't work correctly with 'NA' values
 fdata <- fdata(t(na.omit(t(data))))
+
 ### Use of optim.basis gives GCV and optimal number of basis
 if(isTRUE(optimise)){
   fdata <- fdata(t(na.omit(t(data))))
@@ -91,7 +93,6 @@ axis(2)
 axis(side=1,at=1:ncol(data), labels = colnames(data))
 legend("topleft", legend = rownames(data), col = 1:7, pch = 1)
 dev.off()
-rm(fd)
 
 ### Cluster analysis #1
 png(filename="hist.png", width = 550, height = 330, unit = "px")
@@ -120,39 +121,30 @@ plot(
 )
 text(fd.pca$scores[,1], fd.pca$scores[,2], labels = rownames(fd.pca$scores), cex = 1)
 dev.off()
-
+########
 
 ### PAM
 fd.kmeans <-
   kmeans.fd(
-    fd,
+    fdataobj = fdata,
     ncl = 3,
-    metric = metric.dist,
+    metric = "metric.lp",
     draw = FALSE,
     cluster.size = 1,
     par.dfunc = NULL
   )
+
+plot(fd.kmeans$centers)
 
 fd.kmeans <-
   kmeans.fd(
-    fd,
-    ncl = 3,
-    draw = FALSE,
+    fdataobj = fdata,
+    ncl = c(1:3),
+    draw = TRUE,
     cluster.size = 1,
+    #dfunc = "LD",
     par.dfunc = NULL
   )
 
-plot(fd, cex = 0.7, col)
-lines(fd.kmeans$centers)
-
-fd.kmeans$cluster
-fd.hclust(fd.deriv.1, "lp")
-fd.hclust(fd, "lp")
 
 
-legend(x = 3,
-       y = 3,
-       legend = rownames(fd.pca$scores))
-plot.pca.fd(x = fd.pca,
-            pointplot = FALSE,
-            cycle = FALSE)
