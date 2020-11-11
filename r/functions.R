@@ -37,7 +37,8 @@ fca <- function(data = data,
                 width = 1100,
                 height = 660,
                 nbasis = 51,
-                metric = "metric.dist",
+                metric = "minkowski",
+                method = "average",
                 optimise = FALSE,
                 nharm = 2,
                 ncl = 3,
@@ -49,7 +50,8 @@ fca <- function(data = data,
                width = width,
                height = height,
                nbasis = nbasis,
-               metric = metric,
+               metric = "minkowski",
+               method = "average",
                optimise = optimise,
                nharm = nharm,
                lambda = lambda)
@@ -81,9 +83,9 @@ fca <- function(data = data,
   rownames(pca$scores) <- fd$fdnames$reps
   
   dist.matrix <-
-    metric.dist(t(fd$coefs), p = 2, method = "minkowski")
+    metric.dist(t(fd$coefs), p = 2, method = metric)
   b <- as.dist(dist.matrix)
-  hclust <- hclust(b, method = "average")
+  hclust <- hclust(b, method = method)
   
   
   pam <-

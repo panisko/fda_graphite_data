@@ -36,6 +36,10 @@ clust.basis = c("bspline",
                 "polygonal",
                 "monomial")
 
+metrics = c("minkowski")
+
+methods = c("complete", "average")
+
 #UI
 ui <- fluidPage(
     # Application title
@@ -51,12 +55,31 @@ ui <- fluidPage(
                 selected =
                     'fourier'
             ),
+            radioButtons(
+                "method", 
+                label = "Clustering method", 
+                choices = methods,
+                selected = "average"
+            ),
+            radioButtons(
+                "metric", 
+                label = "Metric", 
+                choices = metrics,
+                selected = "minkowski"
+            ),
             sliderInput(
                 "nderiv",
                 label = "Deriv",
                 min = 0,
                 max = 2,
                 value = 0
+            ),
+            sliderInput(
+                "nharm",
+                label = "nharm",
+                min = 1,
+                max = 5,
+                value = 2
             ),
             sliderInput(
                 "nbasis",
@@ -97,9 +120,10 @@ server <- function(input, output) {
             #width = 1100,
             #height = 660,
             nbasis = input$nbasis,
-            metric = "metric.dist",
+            metric = input$metric,
+            method = input$method,
             optimise = FALSE,
-            nharm = 2,
+            nharm = input$nharm,
             ncl=input$ncl,
             lambda = 1e6
         )
