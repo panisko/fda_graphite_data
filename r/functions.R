@@ -40,6 +40,7 @@ fca <- function(data = data,
                 metric = "metric.dist",
                 optimise = FALSE,
                 nharm = 2,
+                ncl = 3,
                 lambda = 1e6,
                 
                 ...) {
@@ -53,6 +54,7 @@ fca <- function(data = data,
                nharm = nharm,
                lambda = lambda)
   response <- list()
+  data <- data
   fdata <- fdata(t(na.omit(t(data))))
   
   if (isTRUE(optimise)) {
@@ -87,7 +89,7 @@ fca <- function(data = data,
   pam <-
     kmeans.fd(
       fdataobj = fdata,
-      ncl = c(1:3),
+      ncl = ncl,
       draw = FALSE,
       cluster.size = 1,
       par.dfunc = NULL
@@ -96,6 +98,8 @@ fca <- function(data = data,
   response <-
     list(
       call = call,
+      data =data,
+      fdata = fdata,
       optimisedFd = optimisedFd ,
       fd = fd,
       mean = mean,
