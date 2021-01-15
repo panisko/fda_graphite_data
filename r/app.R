@@ -14,22 +14,8 @@ library(devtools)
 library('fda.usc')
 source("./functions.R")
 # url <-
-    # 'https://raw.github.com/panisko/graphite2r/master/resource/20200401_20200501_file.csv'
+# 'https://raw.github.com/panisko/graphite2r/master/resource/20200401_20200501_file.csv'
 
-# startDate <- "20200625"
-# endDate <- "20200803"
-# url <- BuildUrl(graphiteHost = "http://graphite:8080", startDate = startDate, endDate = endDate)
-# graphite_data <-
-#     read.csv(
-#         url,
-#         na.strings = c("NA"),
-#         quote = "\"",
-#         header = TRUE,
-#         sep = separator
-#     )
-
-### Convert data to matrix 
-# data <- GraphiteToMatrix(graphite_data)
 
 #Global variavles
 clust.basis = c("bspline",
@@ -40,10 +26,27 @@ clust.basis = c("bspline",
                 "polygonal",
                 "monomial")
 
-dist.metrics = c("euclidean", "maximum", "manhattan", "canberra", "binary", "minkowski")
-metrics = c("metric.DTW", "metric.lp", "metric.hausdorff", "semimetric.NPFDA" )
+dist.metrics = c("euclidean",
+                 "maximum",
+                 "manhattan",
+                 "canberra",
+                 "binary",
+                 "minkowski")
+metrics = c("metric.DTW",
+            "metric.lp",
+            "metric.hausdorff",
+            "semimetric.NPFDA")
 
-methods = c("complete", "average", "ward.D", "ward.D2", "single", "mcquitty", "median", "centroid")
+methods = c(
+    "complete",
+    "average",
+    "ward.D",
+    "ward.D2",
+    "single",
+    "mcquitty",
+    "median",
+    "centroid"
+)
 
 #UI
 ui <- fluidPage(
@@ -78,14 +81,14 @@ ui <- fluidPage(
                 )
             ),
             radioButtons(
-                "method", 
-                label = "Clustering method", 
+                "method",
+                label = "Clustering method",
                 choices = methods,
                 selected = "average"
             ),
             radioButtons(
-                "metric", 
-                label = "Metric", 
+                "metric",
+                label = "Metric",
                 choices = metrics,
                 selected = "metric.lp"
             ),
@@ -118,11 +121,21 @@ ui <- fluidPage(
                 value = 3
             ),
             actionButton("fda", "Funcit"),
+            downloadButton("saveCsv", "Save CSV file"),
+            fileInput(
+                "file",
+                "Choose CSV File",
+                multiple = FALSE,
+                accept = c("text/csv",
+                           "text/comma-separated-values,text/plain",
+                           ".csv")
+            ),
+            # ,actionButton("uploadCvs", "Upload CSV file")
         ),
         
         # Show a plot of the generated distribution
         mainPanel(
-            plotOutput("dataPlot"), 
+            plotOutput("dataPlot"),
             plotOutput("fdata"),
             plotOutput("pca"),
             plotOutput("pcaHarm"),
@@ -135,13 +148,59 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
     
-    data <- reactive({
-        url <- BuildUrl(graphiteHost = "http://graphite:8080", startDate = format(input$date[1], "%Y%m%d"), endDate = format(input$date[2], "%Y%m%d"))
-        graphite_data <- GetData(url = url, separator = ',')
-        graphite_data[graphite_data==""] <- 0
-        data <- GraphiteToMatrix(graphite_data)
-    return(data)
+    graphiteData <- reactive({
+        if (is.null(input$file)) {
+            startDate <- format(input$date[1], "%Y%m%d")
+            endDate <- format(input$date[2], "%Y%m%d")
+            
+            url <-
+                BuildUrl(
+                    graphiteHost = "http://graphite:8080",
+                    startDate = startDate,
+                    endDate = endDate
+                )
+            graphiteData <- GetData(url = url, separator = ',')
+            graphiteData[graphiteData == ""] <- 0
+        }
+        else {
+            tryCatch({
+                file <- input$file$datapath
+                graphiteData <- read.table(file = 'test.csv', header = TRUE, sep = ',', dec = '.', check.names = FALSE, quote = "\"")
+                # colnames(data) <- as.numeric(colnames(data))
+            },
+            error = function(e) {
+                # return a safeError if a parsing error occurs
+                stop(safeError(e))
+            })
+        }
+        return(graphiteData)
     })
+    
+    data <- eventReactive(graphiteData(), {
+        return(GraphiteToMatrix(graphiteData()))
+    })
+    
+    
+    
+    output$saveCsv <- downloadHandler(
+        # data <- data()
+        filename = function() {
+            paste(
+                "graphite_data_",
+                format(input$date[1], "%Y%m%d"),
+                '_',
+                format(input$date[2], "%Y%m%d"),
+                ".csv",
+                sep = ''
+            )
+        } ,
+        # content = write.csv(data(), )
+        content = function(file) {
+            write.csv(data(), file)
+        },
+        contentType = "text/csv"
+        
+    )
     
     clust.data <- eventReactive(input$fda, {
         data <- data()
@@ -156,7 +215,7 @@ server <- function(input, output) {
             method = input$method,
             optimise = FALSE,
             nharm = input$nharm,
-            ncl=input$ncl,
+            ncl = input$ncl,
             lambda = 1e6
         )
         return(fca)
@@ -189,7 +248,7 @@ server <- function(input, output) {
     })
     output$fdata <- renderPlot({
         fdata <- clust.data()$fd
-        # mean <- clust.data()$mean
+        mean <- clust.data()$mean
         plot(
             fdata,
             ylab = "Temperatura",
@@ -198,10 +257,10 @@ server <- function(input, output) {
             cex = 0.1,
             axes = F
         )
-        # lines(mean,
-        #       cex = 14,
-        #       cex.lab = 10 ,
-        #       col = "red")
+        lines(mean,
+              cex = 14,
+              cex.lab = 10 ,
+              col = "red")
         axis(2)
         axis(
             side = 1,
@@ -281,6 +340,5 @@ server <- function(input, output) {
         )
     })
 }
-    # Run the application
-    shinyApp(ui = ui, server = server)
-    
+shinyApp(ui = ui, server = server)
+# Run the application

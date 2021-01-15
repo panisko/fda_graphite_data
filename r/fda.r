@@ -210,3 +210,9 @@ get(met(fca$fdata))
 do.call("metric.lp", fca$fdata)
 
 metric.lp(fca$fdata)
+
+#TESTING
+data1 <- read.table(file = 'test.csv', header = TRUE, sep = ',', dec = '.', check.names = FALSE)
+colnames(data1) <- as.numeric(colnames(data1))
+
+View(data1)
