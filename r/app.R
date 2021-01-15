@@ -1,4 +1,3 @@
-#
 # This is a Shiny web application. You can run the application by clicking
 # the 'Run App' button above.
 #
@@ -14,18 +13,9 @@ library(devtools)
 #devtools::install_github("moviedo5/fda.usc")
 library('fda.usc')
 source("./functions.R")
-url <-
-    'https://raw.github.com/panisko/graphite2r/master/resource/20200401_20200501_file.csv'
-graphite_data <-
-    read.csv(
-        url,
-        na.strings = c("NA"),
-        quote = "\"",
-        header = TRUE,
-        sep = ' '
-    )
-### Convert data to matrix
-data <- GraphiteToMatrix(graphite_data)
+# url <-
+# 'https://raw.github.com/panisko/graphite2r/master/resource/20200401_20200501_file.csv'
+
 
 #Global variavles
 clust.basis = c("bspline",
@@ -36,6 +26,28 @@ clust.basis = c("bspline",
                 "polygonal",
                 "monomial")
 
+dist.metrics = c("euclidean",
+                 "maximum",
+                 "manhattan",
+                 "canberra",
+                 "binary",
+                 "minkowski")
+metrics = c("metric.DTW",
+            "metric.lp",
+            "metric.hausdorff",
+            "semimetric.NPFDA")
+
+methods = c(
+    "complete",
+    "average",
+    "ward.D",
+    "ward.D2",
+    "single",
+    "mcquitty",
+    "median",
+    "centroid"
+)
+
 #UI
 ui <- fluidPage(
     # Application title
@@ -44,12 +56,41 @@ ui <- fluidPage(
     # Sidebar with a slider input for number of bins
     sidebarLayout(
         sidebarPanel(
+            dateRangeInput(
+                "date",
+                strong("Date"),
+                format = "yyyy-mm-dd",
+                start = Sys.Date(),
+                end = Sys.Date()
+            ),
             radioButtons(
                 "basis",
                 label = "Basis type",
                 choices = clust.basis,
                 selected =
                     'fourier'
+            ),
+            conditionalPanel(
+                condition = "input.basis.indexOf('bspline') > -1",
+                sliderInput(
+                    "bspline.norder",
+                    label  = "norder na razie nie działa",
+                    min = 0,
+                    max = 10,
+                    value = 4
+                )
+            ),
+            radioButtons(
+                "method",
+                label = "Clustering method",
+                choices = methods,
+                selected = "average"
+            ),
+            radioButtons(
+                "metric",
+                label = "Metric",
+                choices = metrics,
+                selected = "metric.lp"
             ),
             sliderInput(
                 "nderiv",
@@ -59,10 +100,17 @@ ui <- fluidPage(
                 value = 0
             ),
             sliderInput(
+                "nharm",
+                label = "nharm",
+                min = 1,
+                max = 5,
+                value = 2
+            ),
+            sliderInput(
                 "nbasis",
                 label = "Number of basis functions",
                 min = 1,
-                max = 1000,
+                max = 300,
                 value = 51
             ),
             sliderInput(
@@ -72,40 +120,108 @@ ui <- fluidPage(
                 max = 7,
                 value = 3
             ),
+            actionButton("fda", "Funcit"),
+            downloadButton("saveCsv", "Save CSV file"),
+            fileInput(
+                "file",
+                "Choose CSV File",
+                multiple = FALSE,
+                accept = c("text/csv",
+                           "text/comma-separated-values,text/plain",
+                           ".csv")
+            ),
+            # ,actionButton("uploadCvs", "Upload CSV file")
         ),
         
         # Show a plot of the generated distribution
         mainPanel(
+            plotOutput("dataPlot"),
+            plotOutput("fdata"),
             plotOutput("pca"),
             plotOutput("pcaHarm"),
             plotOutput("pam"),
-            plotOutput("fdata", width = "100%"),
             plotOutput("hclust"),
-            plotOutput("dataPlot"), 
-            
         )
     )
 )
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-    clust.data <- reactive({
-        fca(
+    
+    graphiteData <- reactive({
+        if (is.null(input$file)) {
+            startDate <- format(input$date[1], "%Y%m%d")
+            endDate <- format(input$date[2], "%Y%m%d")
+            
+            url <-
+                BuildUrl(
+                    graphiteHost = "http://graphite:8080",
+                    startDate = startDate,
+                    endDate = endDate
+                )
+            graphiteData <- GetData(url = url, separator = ',')
+            graphiteData[graphiteData == ""] <- 0
+        }
+        else {
+            tryCatch({
+                file <- input$file$datapath
+                graphiteData <- read.table(file = 'test.csv', header = TRUE, sep = ',', dec = '.', check.names = FALSE, quote = "\"")
+                # colnames(data) <- as.numeric(colnames(data))
+            },
+            error = function(e) {
+                # return a safeError if a parsing error occurs
+                stop(safeError(e))
+            })
+        }
+        return(graphiteData)
+    })
+    
+    data <- eventReactive(graphiteData(), {
+        return(GraphiteToMatrix(graphiteData()))
+    })
+    
+    
+    
+    output$saveCsv <- downloadHandler(
+        # data <- data()
+        filename = function() {
+            paste(
+                "graphite_data_",
+                format(input$date[1], "%Y%m%d"),
+                '_',
+                format(input$date[2], "%Y%m%d"),
+                ".csv",
+                sep = ''
+            )
+        } ,
+        # content = write.csv(data(), )
+        content = function(file) {
+            write.csv(data(), file)
+        },
+        contentType = "text/csv"
+        
+    )
+    
+    clust.data <- eventReactive(input$fda, {
+        data <- data()
+        fca <- fca(
             data = data,
             basis =  input$basis,
             nderiv = input$nderiv,
             #width = 1100,
             #height = 660,
             nbasis = input$nbasis,
-            metric = "metric.dist",
+            metric = input$metric,
+            method = input$method,
             optimise = FALSE,
-            nharm = 2,
-            ncl=input$ncl,
+            nharm = input$nharm,
+            ncl = input$ncl,
             lambda = 1e6
         )
+        return(fca)
     })
     output$dataPlot <- renderPlot({
-        # fca_data <- clust.data()$data
+        data <- data()
         matplot(
             t(data),
             lty = 0.5,
@@ -133,7 +249,7 @@ server <- function(input, output) {
     output$fdata <- renderPlot({
         fdata <- clust.data()$fd
         mean <- clust.data()$mean
-        plot.fd(
+        plot(
             fdata,
             ylab = "Temperatura",
             xlab = "Czas w formacie epoc",
@@ -146,7 +262,6 @@ server <- function(input, output) {
               cex.lab = 10 ,
               col = "red")
         axis(2)
-        # axis(side=1,at=1:ncol(data), labels = colnames(data))
         axis(
             side = 1,
             at = 1:length(fdata$fdnames$time),
@@ -154,8 +269,8 @@ server <- function(input, output) {
         )
         legend(
             "topleft",
-            legend = rownames(data),
-            col = 1:ncol(data),
+            legend = fdata$fdnames$reps,
+            col = 1:length(fdata$fdnames$reps),
             pch = 1
         )
     })
@@ -194,23 +309,7 @@ server <- function(input, output) {
     output$pcaHarm <- renderPlot({
         pca <- clust.data()$pca
         plot(pca$harmonics)
-        # plot(
-        #     pca$scores,
-        #     ylab = "PC Score 2",
-        #     xlab = "PC Score 1",
-        #     col = 4,
-        #     cex.lab = 0.5,
-        #     ylim = c(min(pca$scores[, 2] - 1),
-        #              max(pca$scores[, 2] + 1)),
-        #     xlim = c(min(pca$scores[, 1] - 1),
-        #              max(pca$scores[, 1] +
-        #                      1)),
-        #     type = "n"
-        # )
-        # text(pca$scores[, 1],
-        #      pca$scores[, 2],
-        #      labels = rownames(pca$scores),
-        #      cex = 1)
+        #plot.pca.fd(pca, cycle = FALSE)
     })
     output$pam <- renderPlot({
         pam <- clust.data()$pam
@@ -241,6 +340,5 @@ server <- function(input, output) {
         )
     })
 }
-    # Run the application
-    shinyApp(ui = ui, server = server)
-    
+shinyApp(ui = ui, server = server)
+# Run the application

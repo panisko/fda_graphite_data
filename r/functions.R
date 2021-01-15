@@ -1,4 +1,36 @@
+BuildUrl <- function(graphiteHost, startDate, endDate, metrics){
+  url <-
+    paste(
+      graphiteHost,
+      "/render?from=01%3A00_",
+      startDate,
+      "&until=23%3A59_",
+      endDate,
+      #"&target=home.fibaro.*.grzejnik.termometr.temp&target=home.fibaro.*.*.termostat.targetTemp&tz=UTC&format=csv",
+      "&target=home.fibaro.*.grzejnik.termometr.temp&tz=UTC&format=csv",
+      sep = ''
+    )
+  return(url);
+}
+
+ReplaceEmptyWithZeros <- function(csv) {
+  #this is needed in case metric is empty
+  return(csv[csv==""] <- 0)
+}
+GetData <- function(url, separator) {
+  return(
+    read.csv2(
+      url,
+      #na.strings = 0,
+      # quote = "\"",
+      header = FALSE,
+      sep = separator
+    )
+    )
+}
+
 GraphiteToMatrix <- function(data) {
+  # data <- ReplaceEmptyWithZeros(data)
   n <- length(levels(as.factor(data[, 1])))
   l <- vector("list", n)
   macierz <- matrix(ncol = n)
@@ -11,16 +43,15 @@ GraphiteToMatrix <- function(data) {
     print(paste("++Level: ", i, " value: ", column.name))
     if (i == 1) {
       dateTime <- data[data[, 1] == value, 2]
-      
       macierz <- cbind(as.numeric(as.POSIXlt(dateTime)))
-      
       colnames(macierz)[1] <- "dateTime"
+
       l[[i]] <- as.numeric(data[data[, 1] == value, 3])
       macierz <- cbind(macierz, l[[i]])
       colnames(macierz)[2] <- paste(column.name)
     }
     else {
-      l[[i]] <- data[data[, 1] == value, 3]
+      l[[i]] <- as.numeric(data[data[, 1] == value, 3])
       macierz <- cbind(macierz, l[[i]])
       colnames(macierz)[i + 1] <- paste(column.name)
     }
@@ -37,7 +68,9 @@ fca <- function(data = data,
                 width = 1100,
                 height = 660,
                 nbasis = 51,
-                metric = "metric.dist",
+                norder = 4, 
+                metric = "metric.lp",
+                method = "average",
                 optimise = FALSE,
                 nharm = 2,
                 ncl = 3,
@@ -49,9 +82,12 @@ fca <- function(data = data,
                width = width,
                height = height,
                nbasis = nbasis,
-               metric = metric,
+               metric = "metric.lp",
+               method = "average",
                optimise = optimise,
                nharm = nharm,
+               ncl = 3,
+               hclust.mincowski = 2,
                lambda = lambda)
   response <- list()
   data <- data
@@ -80,10 +116,23 @@ fca <- function(data = data,
   pca <- pca.fd(fdobj = fd,  nharm = nharm)
   rownames(pca$scores) <- fd$fdnames$reps
   
-  dist.matrix <-
-    metric.dist(t(fd$coefs), p = 2, method = "minkowski")
+  if (metric == "metric.lp"){
+    dist.matrix <- metric.lp(fdata) 
+  }
+  if (metric == "metric.DTW"){
+    dist.matrix <- metric.DTW(fdata) 
+  }
+  if (metric == "metric.hausdorff"){
+    dist.matrix <- metric.hausdorff(fdata) 
+  }
+  if (metric == "semimetric.NPFDA"){
+    dist.matrix <- semimetric.NPFDA(fdata) 
+  }
+  if (metric == "metric.lp"){
+    dist.matrix <- metric.lp(fdata) 
+  }
   b <- as.dist(dist.matrix)
-  hclust <- hclust(b, method = "average")
+  hclust <- hclust(b, method = method)
   
   
   pam <-
