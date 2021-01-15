@@ -1,7 +1,7 @@
 ### Libraries
 library('fda')
 library(devtools)
-devtools::install_github("moviedo5/fda.usc")
+#devtools::install_github("moviedo5/fda.usc")
 library('fda.usc')
 ### Functions
 
@@ -17,14 +17,20 @@ source("./functions.R")
 ### Read data
 url <-
   'https://raw.github.com/panisko/graphite2r/master/resource/20200401_20200501_file.csv'
+
+startDate <- "20210115"
+endDate <- "20210115"
+url <- BuildUrl(graphiteHost = "http://graphite:8080", startDate = startDate, endDate = endDate)
+
 graphite_data <-
-  read.csv(
+  read.csv2(
     url,
     na.strings = c("NA"),
     quote = "\"",
-    header = TRUE,
-    sep = ' '
+    header = FALSE,
+    sep = ','
   )
+graphite_data[graphite_data==""] <- 0
 ### Convert data to matrix
 data <- GraphiteToMatrix(graphite_data)
 
@@ -70,12 +76,7 @@ png(
   unit = "px"
 )
 fd <- fca$fd
-fd$fdnames$reps
-fd$fdnames$time
-length(fd$fdnames$reps)
-rownames(data)
-colnames(data)
-plot.fd(fd,
+plot(fd,
             ylab = "Temperatura",
             xlab = "Czas w formacie epoc",
             cex =7,
@@ -89,9 +90,6 @@ axis(2)
 axis(side = 1,
      at = 1:length(fd$fdnames$time),
      labels = fd$fdnames$time)
-axis(side = 1,
-     at = 1:ncol(data),
-     labels = colnames(data))
 legend("topleft",
        legend = fd$fdnames$reps,
        col = 1:length(fd$fdnames$reps),
@@ -171,6 +169,7 @@ png(
   unit = "px"
 )
 data <- fca$pam$centers$data
+
 matplot(
   t(data),
   lty = 0.5,
@@ -193,11 +192,21 @@ legend("topleft",
        pch = 1)
 dev.off()
 
-install.packages('tidyverse')
-library(tidyverse)
-library(reshape2)
 
-ggplot(data=fca$fd)
+plot.pca.fd(fca$pca)
+method <- "average"
+dist.matrix <-
+  metric.lp(fca$fdata)
+b <- as.dist(dist.matrix)
+hclust <- hclust(b, method = method)
+plot(hclust)
+plot(metric.lp(fca$fdata))
+metric.lp(fca$data[1,], fca$data[2,])
+metric.lp(fca$fdata)
+metric <- "metric.lp"
+met <- `metric`
+get(met(fca$fdata))
 
+do.call("metric.lp", fca$fdata)
 
-efd <- eval.fd(fca$fdata)
+metric.lp(fca$fdata)
