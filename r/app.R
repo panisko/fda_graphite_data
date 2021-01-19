@@ -64,6 +64,12 @@ ui <- fluidPage(
                 end = Sys.Date()
             ),
             radioButtons(
+                "removeEmptyRows",
+                label = "Remove empty rows?",
+                choices = c("Yes", "No"),
+                selected = "Yes"
+            ),
+            radioButtons(
                 "basis",
                 label = "Basis type",
                 choices = clust.basis,
@@ -147,12 +153,10 @@ ui <- fluidPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-    
     graphiteData <- reactive({
         if (is.null(input$file)) {
             startDate <- format(input$date[1], "%Y%m%d")
             endDate <- format(input$date[2], "%Y%m%d")
-            
             url <-
                 BuildUrl(
                     graphiteHost = "http://graphite:8080",
@@ -160,12 +164,19 @@ server <- function(input, output) {
                     endDate = endDate
                 )
             graphiteData <- GetData(url = url, separator = ',')
-            graphiteData[graphiteData == ""] <- 0
         }
         else {
             tryCatch({
                 file <- input$file$datapath
-                graphiteData <- read.table(file = 'test.csv', header = TRUE, sep = ',', dec = '.', check.names = FALSE, quote = "\"")
+                graphiteData <-
+                    read.table(
+                        file = 'test.csv',
+                        header = TRUE,
+                        sep = ',',
+                        dec = '.',
+                        check.names = FALSE,
+                        quote = "\""
+                    )
                 # colnames(data) <- as.numeric(colnames(data))
             },
             error = function(e) {
@@ -176,11 +187,16 @@ server <- function(input, output) {
         return(graphiteData)
     })
     
-    data <- eventReactive(graphiteData(), {
-        return(GraphiteToMatrix(graphiteData()))
+    data <- reactive( {
+        data <- GraphiteToMatrix(graphiteData())
+       
+         if (input$removeEmptyRows == "Yes") {
+             data <- RemoveEmptyRows(data)
+        }
+        #Replacing missing values with zeros
+        data[is.na(data)] <- 0
+        return(data)
     })
-    
-    
     
     output$saveCsv <- downloadHandler(
         # data <- data()

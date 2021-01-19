@@ -13,6 +13,10 @@ BuildUrl <- function(graphiteHost, startDate, endDate, metrics){
   return(url);
 }
 
+RemoveEmptyRows <- function(data) {
+  data <- data[rowSums(is.na(data)) != ncol(data), ]
+  return(data)
+}
 ReplaceEmptyWithZeros <- function(csv) {
   #this is needed in case metric is empty
   return(csv[csv==""] <- 0)

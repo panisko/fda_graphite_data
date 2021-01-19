@@ -22,19 +22,21 @@ startDate <- "20210115"
 endDate <- "20210115"
 url <- BuildUrl(graphiteHost = "http://graphite:8080", startDate = startDate, endDate = endDate)
 
-graphite_data <-
+graphiteData <-
   read.csv2(
     url,
-    na.strings = c("NA"),
-    quote = "\"",
+#    na.strings = "",
+#    quote = "\"",
     header = FALSE,
     sep = ','
   )
-graphite_data[graphite_data==""] <- 0
+rm(data)
 ### Convert data to matrix
-data <- GraphiteToMatrix(graphite_data)
+data <- GraphiteToMatrix(graphiteData)
+data <- data[rowSums(is.na(data)) != ncol(data), ]
+data[is.na(data)] <- 0
 
-
+is.na(data)
 ### Vars for further processing
 fca <- fca(data)
 
