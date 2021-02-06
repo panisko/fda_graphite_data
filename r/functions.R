@@ -49,7 +49,6 @@ GraphiteToMatrix <- function(data) {
       dateTime <- data[data[, 1] == value, 2]
       macierz <- cbind(as.numeric(as.POSIXlt(dateTime)))
       colnames(macierz)[1] <- "dateTime"
-
       l[[i]] <- as.numeric(data[data[, 1] == value, 3])
       macierz <- cbind(macierz, l[[i]])
       colnames(macierz)[2] <- paste(column.name)
