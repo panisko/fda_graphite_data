@@ -1,2 +1,3 @@
+Archived
 # graphite2r
-Project aims to cluster graphite data using R
+Project aims to perform functional data clustering based on graphite data using R
